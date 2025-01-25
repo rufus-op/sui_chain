@@ -1,1 +1,260 @@
-# sui_chain
+Sui Dart SDK
+-
+
+[![Pub](https://img.shields.io/badge/pub-v0.3.7-blue)](https://pub.dev/packages/sui)
+
+> Note: This branch is in active development and may introduce breaking changes. If you don’t need Transaction v2 feature, use the `v1` branch.
+
+Installation
+-
+
+```
+dependencies:
+  sui: ^0.3.7
+```
+
+Demo
+-
+
+https://sui-dart.pages.dev/
+
+Usage
+-
+
+### Connecting to Sui Network
+
+```dart
+/// connect to devnet
+final devnetClient = SuiClient(SuiUrls.devnet);
+
+/// connect to testnet
+final testnetClient = SuiClient(SuiUrls.testnet);
+
+/// connect to mainnet
+final mainnetClient = SuiClient(SuiUrls.mainnet);
+```
+
+### Getting coins from the faucet
+
+#### Faucet V0
+```dart
+final faucet = FaucetClient(SuiUrls.faucetDev);
+await faucet.requestSuiFromFaucetV0('0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2');
+```
+
+#### Faucet V1
+```dart
+final faucet = FaucetClient(SuiUrls.faucetDev);
+await faucet.requestSuiFromFaucetV1('0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2');
+```
+
+### Sui Account
+
+#### Create account with private key
+
+```dart
+/// Ed25519 account
+final ed25519 = SuiAccount.ed25519Account();
+final ed25519Import = SuiAccount.fromPrivateKey(ed25519.privateKey());
+
+/// Secp256k1 account
+final secp256k1 = SuiAccount.secp256k1Account();
+final sepc256k1Import = SuiAccount.fromPrivateKey(secp256k1.privateKey());
+
+/// Secp256r1 account
+final secp256r1 = SuiAccount.secp256r1Account();
+final sepc256r1Import = SuiAccount.fromPrivateKey(secp256r1.privateKey());
+```
+
+#### Create account with mnemonic
+
+```dart
+/// create mnemonics
+final mnemonics = SuiAccount.generateMnemonic();
+
+/// Ed25519 account
+final ed25519 = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Ed25519);
+
+/// Secp256k1 account
+final secp256k1 = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Secp256k1);
+
+/// Secp256r1 account
+final secp256r1 = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Secp256r1);
+```
+
+### Writing APIs
+
+#### Transfer Object
+
+```dart
+final account = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Ed25519);
+final client = SuiClient(SuiUrls.devnet);
+
+final tx = Transaction();
+tx.transferObjects(
+    [tx.objectId('0x2619f581cb1864d07c89453a69611202669fdc4784fb59b9cb4278ec60756011')], 
+    account.getAddress()
+);
+
+final result = await client.signAndExecuteTransactionBlock(account, tx);
+print(result.digest);
+```
+
+#### Split and Transfer Coins
+
+```dart
+final account = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Ed25519);
+final client = SuiClient(SuiUrls.devnet);
+
+final tx = Transaction();
+final coin = tx.splitCoins(tx.gas, [1000]);
+tx.transferObjects(
+    [coin],
+    account.getAddress()
+);
+
+final result = await client.signAndExecuteTransactionBlock(account, tx);
+print(result.digest);
+```
+
+#### Merge Coins
+
+```dart
+final account = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Ed25519);
+final client = SuiClient(SuiUrls.devnet);
+
+final tx = Transaction();
+tx.mergeCoins(tx.objectId('0x922ec73939b3288f6da39ebefb0cb88c6c54817441254d448bd2491ac4dd0cbd'), 
+    [tx.objectId('0x8dafc96dec7f8d635e052a6da9a4153e37bc4d59ed44c45006e4e9d17d07f80d')]
+);
+
+final result = await client.signAndExecuteTransactionBlock(account, tx);
+print(result.digest);
+```
+
+#### Move Call
+
+```dart
+final account = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Ed25519);
+final client = SuiClient(SuiUrls.devnet);
+
+const packageObjectId = '0x...';
+final tx = Transaction();
+tx.moveCall('$packageObjectId::nft::mint', arguments: [tx.pureString('Example NFT')]);
+
+final result = await client.signAndExecuteTransactionBlock(account, tx);
+print(result.digest);
+```
+
+#### Publish Modules
+
+```dart
+final account = SuiAccount.fromMnemonics(mnemonics, SignatureScheme.Ed25519);
+final client = SuiClient(SuiUrls.devnet);
+
+const moduels = <String>[];
+const dependencies = <String>[];
+final tx = Transaction();
+final upgradeCap = tx.publish(moduels, dependencies);
+tx.transferObjects([upgradeCap], account.getAddress());
+
+final result = await client.signAndExecuteTransactionBlock(account, tx);
+print(result.digest);
+```
+
+### Reading APIs
+
+#### Get Owned Objects
+
+```dart
+final client = SuiClient(SuiUrls.devnet);
+
+final objects = await client.getOwnedObjects('0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2');
+```
+
+#### Get Objects
+
+```dart
+final client = SuiClient(SuiUrls.devnet);
+
+final obj = await client.getObject('0x0d49dbda185cd0941b71315edb594276731f21b2232d8713f319b02c462a2da7',
+    options: SuiObjectDataOptions(showContent: true)
+);
+
+final objs = await client.multiGetObjects([
+    '0x0d49dbda185cd0941b71315edb594276731f21b2232d8713f319b02c462a2da7',
+    '0x922ec73939b3288f6da39ebefb0cb88c6c54817441254d448bd2491ac4dd0cbd'
+], options: SuiObjectDataOptions(showType: true));
+```
+
+#### Get Transaction
+
+```dart
+final client = SuiClient(SuiUrls.devnet);
+
+final txn = await client.getTransactionBlock('6oH779AUs2WpwW77xCVGbYqK1FYVamRqHjV6A5wCV8Qj',
+    options: SuiTransactionBlockResponseOptions(showEffects: true)
+);
+
+final txns = await client.multiGetTransactionBlocks([
+    '9znMGToLRRa8yZvjCUfj1FJmq4gpb8QwpibFAUffuto1',
+    '4CEFMajEtM62MthwY1xR3Bcddoh2h5wc7jeKEy7WWsbv'
+], options: SuiTransactionBlockResponseOptions(showInput: true, showEffects: true));
+```
+
+#### Get Checkpoints
+
+```dart
+final client = SuiClient(SuiUrls.devnet);
+
+final checkpoint = await client.getCheckpoint('338000');
+
+final checkpoints = await client.getCheckpoints(descendingOrder: true);
+```
+
+#### Get Coins
+
+```dart
+final client = SuiClient(SuiUrls.devnet);
+
+final coins = await client.getCoins(
+    '0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2',
+    coinType: '0x2::sui::SUI');
+
+final allCoins = await client.getAllCoins('0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2');
+
+final suiBalance = await client.getBalance('0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2');
+```
+
+### Events APIs
+
+#### Querying events
+
+```dart
+final client = SuiClient(SuiUrls.devnet);
+
+final events = await client.queryEvents(
+    {"Sender": "0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2"}, 
+    limit: 2
+);
+
+/// Or with EventFilter
+
+final events = await client.queryEventsByFilter(
+    EventFilter(sender: "0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2"), 
+    limit: 2
+);
+```
+
+#### WebsocketClient subscribeEvent
+
+```dart
+final client = WebsocketClient(SuiUrls.webSocketDevnet);
+
+final subscription = client.subscribeEvent({"Sender": "0xa2d8bb82df40770ac5bc8628d8070b041a13386fef17db27b32f3b0f316ae5a2"})
+.listen((event) {
+    debugPrint(event);
+}, onError: (e) {
+    debugPrint(e.toString());
+});
+```
